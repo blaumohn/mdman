@@ -6,6 +6,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from mdman.cli import app, read_source
+from mdman.renderer import extract_headings, markdown_with_toc
 
 
 class CliTest(unittest.TestCase):
@@ -43,6 +44,22 @@ class CliTest(unittest.TestCase):
         self.assertIn("Name", result.output)
         self.assertIn("alpha", result.output)
         self.assertIn("1", result.output)
+
+    def test_extracts_headings_and_makes_duplicate_slugs_unique(self) -> None:
+        source = "# Über uns\n\n```\n## Kein Eintrag\n```\n\n## Über uns\n"
+
+        self.assertEqual(
+            extract_headings(source),
+            [("Über uns", "uber-uns"), ("Über uns", "uber-uns-1")],
+        )
+
+    def test_adds_toc_before_markdown(self) -> None:
+        result = self.runner.invoke(app, ["--with-toc", "-"], input="# Titel\n\nText\n")
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Inhaltsverzeichnis", result.output)
+        self.assertLess(result.output.index("Inhaltsverzeichnis"), result.output.index("Titel"))
+        self.assertIn("#titel", markdown_with_toc("# Titel\n"))
 
 
 if __name__ == "__main__":

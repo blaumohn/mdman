@@ -47,6 +47,13 @@ def render_command(
             help="Ausgabe über den konfigurierten Pager anzeigen.",
         ),
     ] = False,
+    with_toc: Annotated[
+        bool,
+        typer.Option(
+            "--with-toc",
+            help="Ein Inhaltsverzeichnis vor dem Dokument anzeigen.",
+        ),
+    ] = False,
     version: Annotated[
         bool,
         typer.Option(
@@ -59,7 +66,7 @@ def render_command(
 ) -> None:
     try:
         source = read_source(filename)
-        render_markdown(source, width=width, pager=pager)
+        render_markdown(source, width=width, pager=pager, with_toc=with_toc)
     except (OSError, UnicodeError) as error:
         typer.echo(f"mdman: {error}", err=True)
         raise typer.Exit(code=1) from error
