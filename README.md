@@ -38,12 +38,13 @@ Für die statische Typprüfung zusätzlich:
 mdman README.md
 mdman -w 80 dokument.md
 mdman --pager dokument.md
-mdman --with-toc dokument.md
-cat dokument.md | mdman -
+mdman --toc dokument.md
+cat dokument.md | mdman
 ```
 
 Die Ausgabe ist standardmäßig ohne Farbe und auf 80 Spalten begrenzt. Mit
 `--pager` wird der Inhalt über den eingestellten Pager (normalerweise `less`)
 angezeigt.
-Mit `--with-toc` wird vor dem Dokument ein Inhaltsverzeichnis aus seinen
-Überschriften ausgegeben.
+Mit `--toc` wird vor dem Dokument ein hierarchisches Inhaltsverzeichnis aus
+seinen Überschriften ausgegeben. Markdown kann auch direkt über stdin kommen,
+zum Beispiel mit `cat dokument.md | mdman`.

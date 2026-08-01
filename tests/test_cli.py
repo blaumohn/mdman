@@ -54,12 +54,19 @@ class CliTest(unittest.TestCase):
         )
 
     def test_adds_toc_before_markdown(self) -> None:
-        result = self.runner.invoke(app, ["--with-toc", "-"], input="# Titel\n\nText\n")
+        result = self.runner.invoke(app, ["--toc", "-"], input="# Titel\n\nText\n")
 
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Inhaltsverzeichnis", result.output)
         self.assertLess(result.output.index("Inhaltsverzeichnis"), result.output.index("Titel"))
         self.assertIn("#titel", markdown_with_toc("# Titel\n"))
+
+    def test_toc_preserves_heading_hierarchy(self) -> None:
+        source = "# Kapitel\n\n## Abschnitt\n\n### Detail\n\n# Schluss\n"
+
+        toc = markdown_with_toc(source)
+
+        self.assertIn("- [Kapitel](#kapitel)\n  - [Abschnitt](#abschnitt)\n    - [Detail](#detail)\n- [Schluss](#schluss)", toc)
 
 
 if __name__ == "__main__":

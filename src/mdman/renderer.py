@@ -26,18 +26,27 @@ def render_markdown(
 
 
 def markdown_with_toc(source: str) -> str:
-    """Prepend a Markdown table of contents to a document."""
-    headings = extract_headings(source)
+    """Prepend a hierarchical Markdown table of contents to a document."""
+    headings = _extract_heading_entries(source)
     if not headings:
         return source
 
-    links = "\n".join(f"- [{text}](#{slug})" for text, slug in headings)
+    first_level = min(level for level, _, _ in headings)
+    links = "\n".join(
+        f"{'  ' * max(level - first_level, 0)}- [{text}](#{slug})"
+        for level, text, slug in headings
+    )
     return f"## Inhaltsverzeichnis\n\n{links}\n\n---\n\n{source}"
 
 
 def extract_headings(source: str) -> list[tuple[str, str]]:
     """Return ATX and setext headings with unique Markdown anchor slugs."""
-    headings: list[tuple[str, str]] = []
+    return [(title, slug) for _, title, slug in _extract_heading_entries(source)]
+
+
+def _extract_heading_entries(source: str) -> list[tuple[int, str, str]]:
+    """Return heading levels, titles, and unique Markdown anchor slugs."""
+    headings: list[tuple[int, str, str]] = []
     used_slugs: dict[str, int] = {}
     fenced = False
     lines = source.splitlines()
@@ -51,11 +60,13 @@ def extract_headings(source: str) -> list[tuple[str, str]]:
 
         match = re.match(r"^ {0,3}(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$", line)
         if match:
+            level = len(match.group(1))
             title = match.group(2).strip()
         elif index > 0 and re.match(r"^ {0,3}(=+|-+)[ \t]*$", line):
             previous = lines[index - 1].strip()
             if not previous or previous.startswith(("#", ">", "-", "*", "+")):
                 continue
+            level = 1 if line.lstrip().startswith("=") else 2
             title = previous
         else:
             continue
@@ -64,7 +75,7 @@ def extract_headings(source: str) -> list[tuple[str, str]]:
         if not plain_title:
             continue
         slug = _unique_slug(plain_title, used_slugs)
-        headings.append((plain_title, slug))
+        headings.append((level, plain_title, slug))
 
     return headings
 
