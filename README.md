@@ -45,6 +45,8 @@ cat dokument.md | mdman
 Die Ausgabe ist standardmäßig ohne Farbe und auf 80 Spalten begrenzt. Mit
 `--pager` wird der Inhalt über den eingestellten Pager (normalerweise `less`)
 angezeigt.
+Bei `less` wird die Option `-R` automatisch aktiviert, damit Richs
+Formatierungen erhalten bleiben.
 Mit `--toc` wird vor dem Dokument ein hierarchisches Inhaltsverzeichnis aus
 seinen Überschriften ausgegeben. Markdown kann auch direkt über stdin kommen,
 zum Beispiel mit `cat dokument.md | mdman`.

@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,7 +7,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from mdman.cli import app, read_source
-from mdman.renderer import extract_headings, markdown_with_toc
+from mdman.renderer import _less_raw_control_codes, extract_headings, markdown_with_toc
 
 
 class CliTest(unittest.TestCase):
@@ -67,6 +68,17 @@ class CliTest(unittest.TestCase):
         toc = markdown_with_toc(source)
 
         self.assertIn("- [Kapitel](#kapitel)\n  - [Abschnitt](#abschnitt)\n    - [Detail](#detail)\n- [Schluss](#schluss)", toc)
+
+    def test_less_gets_raw_control_option_and_environment_is_restored(self) -> None:
+        with patch.dict(os.environ, {"PAGER": "less", "LESS": "-F"}, clear=False):
+            with _less_raw_control_codes():
+                self.assertEqual(os.environ["LESS"], "-F -R")
+            self.assertEqual(os.environ["LESS"], "-F")
+
+    def test_less_option_is_not_duplicated(self) -> None:
+        with patch.dict(os.environ, {"PAGER": "less", "LESS": "-R -F"}, clear=False):
+            with _less_raw_control_codes():
+                self.assertEqual(os.environ["LESS"], "-R -F")
 
 
 if __name__ == "__main__":
