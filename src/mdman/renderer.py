@@ -21,9 +21,11 @@ def render_markdown(
     document = Markdown(source, code_theme="ansi_dark")
 
     if pager:
-        with _less_raw_control_codes():
-            with console.pager(styles=True, links=False):
-                console.print(document)
+        with (
+            _less_raw_control_codes(),
+            console.pager(styles=True, links=False),
+        ):
+            console.print(document)
     else:
         console.print(document)
 

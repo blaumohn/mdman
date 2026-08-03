@@ -3,8 +3,13 @@ from __future__ import annotations
 import re
 import unicodedata
 
+TOC_START_MARKER = "<!-- mdman:toc:start -->"
+TOC_END_MARKER = "<!-- mdman:toc:end -->"
 
-def add_toc(source: str) -> str:
+
+def add_toc(source: str, *, markers: bool = False) -> str:
+    if markers:
+        source = remove_marked_toc(source)
     headings = _extract_heading_entries(source)
     if not headings:
         return source
@@ -13,7 +18,19 @@ def add_toc(source: str) -> str:
         f"{'  ' * max(level - first_level, 0)}- [{text}](#{heading_id})"
         for level, text, heading_id in headings
     )
-    return f"**Inhaltsverzeichnis**\n\n{links}\n\n---\n\n{source}"
+    toc = f"**Inhaltsverzeichnis**\n\n{links}\n\n---"
+    if markers:
+        toc = f"{TOC_START_MARKER}\n{toc}\n{TOC_END_MARKER}"
+    return f"{toc}\n\n{source}"
+
+
+def remove_marked_toc(source: str) -> str:
+    pattern = re.compile(
+        rf"^{re.escape(TOC_START_MARKER)}\n.*?"
+        rf"^{re.escape(TOC_END_MARKER)}(?:\n|$)",
+        re.MULTILINE | re.DOTALL,
+    )
+    return pattern.sub("", source, count=1)
 
 
 def extract_headings(source: str) -> list[tuple[str, str]]:
@@ -41,9 +58,7 @@ def unique_heading_id(heading_id: str, used_ids: dict[str, int]) -> str:
     occurrence = used_ids.get(heading_id, 0)
     used_ids[heading_id] = occurrence + 1
     return (
-        heading_id
-        if occurrence == 0
-        else f"{heading_id}-{occurrence}"
+        heading_id if occurrence == 0 else f"{heading_id}-{occurrence}"
     )
 
 
@@ -88,9 +103,7 @@ def _heading_entry(
 
 def _heading_at(lines: list[str], index: int) -> tuple[int, str] | None:
     line = lines[index]
-    match = re.match(
-        r"^ {0,3}(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$", line
-    )
+    match = re.match(r"^ {0,3}(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$", line)
     if match:
         return len(match.group(1)), match.group(2).strip()
     if index == 0 or not re.match(r"^ {0,3}(=+|-+)[ \t]*$", line):

@@ -25,11 +25,21 @@ Wenn `~/.local/bin` im `PATH` liegt, genügt danach überall:
 mdman README.md
 ```
 
-Für die statische Typprüfung zusätzlich:
+Für die Entwicklungs- und Prüfwerkzeuge zusätzlich:
 
 ```bash
-.venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/python -m mypy src tests
+make dev-install
+```
+
+`make dev-install` legt bei Bedarf zunächst über `scripts/setup.sh` die
+Repo-eigene `.venv` an und installiert anschließend das Projekt einschließlich
+der Entwicklungsabhängigkeiten.
+
+Die vollständige lokale Prüfung aller Formatierungs-, Linting-, Typ- und
+Testprüfungen startet mit:
+
+```bash
+make check
 ```
 
 ## Verwendung
@@ -40,6 +50,7 @@ mdman -w 80 dokument.md
 mdman --pager dokument.md
 mdman --toc dokument.md
 mdman --format markdown --toc dokument.md > dokument.toc.md
+mdman --toc -i dokument.md
 cat dokument.md | mdman
 ```
 
@@ -52,3 +63,7 @@ Mit `--toc` wird ein hierarchisches Inhaltsverzeichnis in das Dokument
 eingefügt. `--format markdown` gibt das verarbeitete Markdown direkt auf
 stdout aus. Markdown kann auch direkt über stdin kommen, zum Beispiel mit
 `cat dokument.md | mdman`.
+Mit `-i` wird die Markdown-Ausgabe zusammen mit `--toc` atomar in dieselbe
+Datei zurückgeschrieben. Das funktioniert nur mit einer echten Datei und
+nicht zusammen mit `--pager`; der erzeugte TOC-Bereich wird markiert und bei
+weiteren Aufrufen ersetzt.

@@ -1,4 +1,5 @@
 import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,7 +8,13 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from mdman.cli import app, read_source
-from mdman.markdown import add_toc, extract_headings, github_heading_id
+from mdman.markdown import (
+    TOC_END_MARKER,
+    TOC_START_MARKER,
+    add_toc,
+    extract_headings,
+    github_heading_id,
+)
 from mdman.renderer import _less_raw_control_codes
 
 
@@ -54,8 +61,7 @@ class CliTest(unittest.TestCase):
 
     def test_duplicate_heading_ids(self) -> None:
         source = (
-            "# Über uns\n\n```\n## Kein Eintrag\n```\n"
-            "\n## Über uns\n"
+            "# Über uns\n\n```\n## Kein Eintrag\n```\n\n## Über uns\n"
         )
 
         self.assertEqual(
@@ -78,8 +84,7 @@ class CliTest(unittest.TestCase):
 
     def test_toc_preserves_heading_hierarchy(self) -> None:
         source = (
-            "# Kapitel\n\n## Abschnitt\n\n### Detail\n"
-            "\n# Schluss\n"
+            "# Kapitel\n\n## Abschnitt\n\n### Detail\n\n# Schluss\n"
         )
 
         toc = add_toc(source)
@@ -123,6 +128,86 @@ class CliTest(unittest.TestCase):
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("--pager", result.output)
 
+    def test_in_place_adds_marked_toc(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            filename = Path(directory) / "beispiel.md"
+            filename.write_text("# Titel\n", encoding="utf-8")
+
+            result = self.runner.invoke(
+                app, ["--toc", "-i", str(filename)]
+            )
+
+            self.assertEqual(result.exit_code, 0)
+            written = filename.read_text(encoding="utf-8")
+            self.assertIn(TOC_START_MARKER, written)
+            self.assertIn("- [Titel](#titel)", written)
+            self.assertEqual(written.count(TOC_START_MARKER), 1)
+
+    def test_in_place_replaces_existing_toc(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            filename = Path(directory) / "beispiel.md"
+            filename.write_text("# Alt\n", encoding="utf-8")
+
+            self.runner.invoke(app, ["--toc", "-i", str(filename)])
+            filename.write_text(
+                filename.read_text(encoding="utf-8").replace(
+                    "# Alt", "# Neu"
+                ),
+                encoding="utf-8",
+            )
+            result = self.runner.invoke(
+                app, ["--toc", "-i", str(filename)]
+            )
+
+            self.assertEqual(result.exit_code, 0)
+            written = filename.read_text(encoding="utf-8")
+            self.assertEqual(written.count(TOC_START_MARKER), 1)
+            self.assertEqual(written.count(TOC_END_MARKER), 1)
+            self.assertIn("- [Neu](#neu)", written)
+            self.assertNotIn("- [Alt](#alt)", written)
+
+    def test_in_place_preserves_file_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            filename = Path(directory) / "beispiel.md"
+            filename.write_text("# Titel\n", encoding="utf-8")
+            filename.chmod(0o640)
+
+            result = self.runner.invoke(
+                app, ["--toc", "-i", str(filename)]
+            )
+
+            self.assertEqual(result.exit_code, 0)
+            self.assertEqual(
+                stat.S_IMODE(filename.stat().st_mode), 0o640
+            )
+
+    def test_in_place_rejects_stdin(self) -> None:
+        result = self.runner.invoke(app, ["-i", "-"])
+
+        self.assertNotEqual(result.exit_code, 0)
+
+    def test_in_place_requires_toc(self) -> None:
+        result = self.runner.invoke(app, ["-i", "README.md"])
+
+        self.assertNotEqual(result.exit_code, 0)
+
+    def test_in_place_rejects_terminal_format(self) -> None:
+        result = self.runner.invoke(
+            app,
+            ["--toc", "-i", "--format", "terminal", "README.md"],
+        )
+
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("--format", result.output)
+
+    def test_in_place_rejects_pager(self) -> None:
+        result = self.runner.invoke(
+            app, ["--toc", "-i", "--pager", "README.md"]
+        )
+
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("--pager", result.output)
+
     def test_less_restores_environment(self) -> None:
         with patch.dict(
             os.environ, {"PAGER": "less", "LESS": "-F"}, clear=False
@@ -132,11 +217,15 @@ class CliTest(unittest.TestCase):
             self.assertEqual(os.environ["LESS"], "-F")
 
     def test_less_option_is_not_duplicated(self) -> None:
-        with patch.dict(
-            os.environ, {"PAGER": "less", "LESS": "-R -F"}, clear=False
+        with (
+            patch.dict(
+                os.environ,
+                {"PAGER": "less", "LESS": "-R -F"},
+                clear=False,
+            ),
+            _less_raw_control_codes(),
         ):
-            with _less_raw_control_codes():
-                self.assertEqual(os.environ["LESS"], "-R -F")
+            self.assertEqual(os.environ["LESS"], "-R -F")
 
 
 if __name__ == "__main__":
