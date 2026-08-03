@@ -39,6 +39,7 @@ mdman README.md
 mdman -w 80 dokument.md
 mdman --pager dokument.md
 mdman --toc dokument.md
+mdman --format markdown --toc dokument.md > dokument.toc.md
 cat dokument.md | mdman
 ```
 
@@ -47,6 +48,7 @@ Die Ausgabe ist standardmäßig ohne Farbe und auf 80 Spalten begrenzt. Mit
 angezeigt.
 Bei `less` wird die Option `-R` automatisch aktiviert, damit Richs
 Formatierungen erhalten bleiben.
-Mit `--toc` wird vor dem Dokument ein hierarchisches Inhaltsverzeichnis aus
-seinen Überschriften ausgegeben. Markdown kann auch direkt über stdin kommen,
-zum Beispiel mit `cat dokument.md | mdman`.
+Mit `--toc` wird ein hierarchisches Inhaltsverzeichnis in das Dokument
+eingefügt. `--format markdown` gibt das verarbeitete Markdown direkt auf
+stdout aus. Markdown kann auch direkt über stdin kommen, zum Beispiel mit
+`cat dokument.md | mdman`.

@@ -11,7 +11,10 @@ requires-python = ">=3.10"
 dependencies = ["rich>=14,<15", "typer>=0.12,<1"]
 
 [project.optional-dependencies]
-dev = ["mypy>=1.10,<2"]
+dev = [
+  "mypy>=1.10,<2",
+  "pylint>=3,<4",
+]
 
 [project.scripts]
 mdman = "mdman.cli:main"

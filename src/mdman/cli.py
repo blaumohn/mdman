@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import sys
+from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from mdman import __version__
+from mdman.markdown import add_toc
 from mdman.renderer import render_markdown
+
+
+class OutputFormat(str, Enum):
+    TERMINAL = "terminal"
+    MARKDOWN = "markdown"
 
 
 app = typer.Typer(
@@ -51,9 +58,13 @@ def render_command(
         bool,
         typer.Option(
             "--toc",
-            help="Ein Inhaltsverzeichnis vor dem Dokument anzeigen.",
+            help="Inhaltsverzeichnis in das Dokument einfügen.",
         ),
     ] = False,
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option("--format", help="Ausgabeformat."),
+    ] = OutputFormat.TERMINAL,
     version: Annotated[
         bool,
         typer.Option(
@@ -66,7 +77,17 @@ def render_command(
 ) -> None:
     try:
         source = read_source(filename)
-        render_markdown(source, width=width, pager=pager, with_toc=toc)
+        if output_format is OutputFormat.MARKDOWN and pager:
+            raise typer.BadParameter(
+                "ist mit --format markdown nicht kombinierbar",
+                param_hint="--pager",
+            )
+        if toc:
+            source = add_toc(source)
+        if output_format is OutputFormat.MARKDOWN:
+            typer.echo(source, nl=False)
+        else:
+            render_markdown(source, width=width, pager=pager)
     except (OSError, UnicodeError) as error:
         typer.echo(f"mdman: {error}", err=True)
         raise typer.Exit(code=1) from error
