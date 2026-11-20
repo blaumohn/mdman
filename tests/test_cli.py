@@ -50,6 +50,29 @@ class CliTest(unittest.TestCase):
         self.assertIn("Titel", result.output)
         self.assertNotIn("\x1b[", result.output)
 
+    def test_hides_citation_markers_in_markdown_prose(self) -> None:
+        source = (
+            "**שלום**\ue200cite<U+E202>turn2search0"
+            "\ue202turn2view1<U+E201>.\n\n"
+            "א<U+E200>ב<U+E201>ג<U+E202>ד\ue200ה\ue201ו\ue202.\n\n"
+            "`<U+E200>` und <U+E203>\n"
+        )
+        result = self.runner.invoke(app, ["-"], input=source)
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(
+            [
+                line.strip()
+                for line in result.output.splitlines()
+                if line.strip()
+            ],
+            ["שלום.", "אבגדהו.", "<U+E200> und <U+E203>"],
+        )
+        exported = self.runner.invoke(
+            app, ["--format", "markdown", "-"], input=source
+        )
+        self.assertEqual(exported.exit_code, 0, exported.output)
+        self.assertEqual(exported.output, source)
+
     def test_renders_gfm_table(self) -> None:
         source = "| Name | Wert |\n| --- | ---: |\n| alpha | 1 |\n"
         result = self.runner.invoke(app, ["-"], input=source)

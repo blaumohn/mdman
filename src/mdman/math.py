@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, ClassVar
 
 from markdown_it import MarkdownIt
+from markdown_it.rules_block import StateBlock
 from markdown_it.rules_core import StateCore
 from markdown_it.token import Token
 from mdit_py_plugins.dollarmath import dollarmath_plugin
@@ -13,6 +15,9 @@ from pylatexenc import (  # type: ignore[import-untyped]
     latex2text,
     latexwalker,
     macrospec,
+)
+from pylatexenc.latexnodes import (  # type: ignore[import-untyped]
+    ParsingStateDeltaLeaveMathMode,
 )
 from rich import box
 from rich.console import Console, ConsoleOptions, RenderResult
@@ -49,12 +54,32 @@ def _boxed_text(node: Any, l2tobj: Any) -> str:
     return f"⟦{l2tobj.node_arg_to_text(node, 0)}⟧"
 
 
+def _minipage_text(node: Any, l2tobj: Any) -> Any:
+    # The size and alignment arguments are consumed by the parser. The
+    # terminal lays out the body as prose with its own inline formulas.
+    in_math = l2tobj.state.in_math_mode
+    with l2tobj.push_state(in_math_mode=False):
+        text = l2tobj.nodelist_to_text(node.nodelist).strip()
+    return (
+        l2tobj.make_math_piece(text=text, cls="ord")
+        if in_math
+        else text
+    )
+
+
 _PARSE_CONTEXT = latexwalker.get_default_latex_context_db()
 _PARSE_CONTEXT.add_context_category(
     "mdman",
     macros=[
         macrospec.MacroSpec(name, "{")
         for name in ("boxed", "left", "right")
+    ],
+    environments=[
+        macrospec.EnvironmentSpec(
+            "minipage",
+            "[[[{",
+            body_parsing_state_delta=ParsingStateDeltaLeaveMathMode(),
+        )
     ],
     prepend=True,
 )
@@ -63,11 +88,16 @@ _TEXT_CONTEXT.add_context_category(
     "mdman",
     macros=[
         latex2text.MacroTextSpec("boxed", simplify_repl=_boxed_text),
+        latex2text.MacroTextSpec("centering", discard=True),
+        latex2text.MacroTextSpec("par", simplify_repl="\n\n"),
         latex2text.MacroTextSpec("text", simplify_repl=_literal_text),
         latex2text.MacroTextSpec("left", simplify_repl=_delimiter_text),
         latex2text.MacroTextSpec(
             "right", simplify_repl=_delimiter_text
         ),
+    ],
+    environments=[
+        latex2text.EnvironmentTextSpec("minipage", _minipage_text)
     ],
     prepend=True,
 )
@@ -148,6 +178,55 @@ def _formula(source: str) -> tuple[str, bool] | None:
         latexwalker.LatexWalkerParseError,
     ):
         return None
+
+
+_BRACKET_OR_ESCAPE = re.compile(r"\\(?:[\\%\[\]])|%.*")
+
+
+def _nested_bracket_block(
+    state: StateBlock, start: int, end: int, silent: bool
+) -> bool:
+    begin = state.bMarks[start] + state.tShift[start]
+    if state.is_code_block(start) or not state.src.startswith(
+        r"\[", begin
+    ):
+        return False
+
+    # texmath ends at the first \]. Intercept balanced nested blocks
+    # so display math inside a minipage stays with the surrounding box.
+    depth = 1
+    nested = False
+    body = []
+    for line in range(start, end):
+        if (
+            not state.isEmpty(line)
+            and state.sCount[line] < state.blkIndent
+        ):
+            break
+        first = begin + 2 if line == start else state.bMarks[line]
+        source = state.src[first : state.eMarks[line]]
+        for match in _BRACKET_OR_ESCAPE.finditer(source):
+            delimiter = match[0]
+            if delimiter == r"\[":
+                depth += 1
+                nested = True
+            if delimiter != r"\]":
+                continue
+            depth -= 1
+            if depth:
+                continue
+            if not nested or source[match.end() :].strip():
+                return False
+            if not silent:
+                body.append(source[: match.start()])
+                token = state.push("math_block", "math", 0)
+                token.content = "\n".join(body)
+                token.markup = r"\["
+                token.map = [start, line + 1]
+            state.line = line + 1
+            return True
+        body.append(source)
+    return False
 
 
 def _boxed_paragraphs(state: StateCore) -> None:
@@ -242,6 +321,11 @@ class MathMarkdown(Markdown):
         super().__init__(source, code_theme="ansi_dark")
         parser = MarkdownIt().enable("strikethrough").enable("table")
         parser.use(texmath_plugin, delimiters="brackets")
+        parser.block.ruler.before(
+            "math_block_eqno",
+            "mdman_nested_math",
+            _nested_bracket_block,
+        )
         parser.use(
             dollarmath_plugin,
             allow_space=False,

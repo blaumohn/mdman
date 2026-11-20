@@ -170,6 +170,9 @@ Formelblöcke mit `\[ … \]` oder `$$ … $$` und Inline-Formeln mit
 `\( … \)` oder `$…$`. Mehrere Formelblöcke können direkt aufeinanderfolgen.
 Für `\boxed{…}` wird zusätzlich die Schreibweise `[ … ]` erkannt.
 Ein Inline-Rahmen erscheint als `⟦…⟧`.
+Eine `minipage` innerhalb eines Formelblocks rendert ihren Text und ihre
+Formeln innerhalb der verfügbaren Terminalbreite. Die LaTeX-Angaben für
+Breite, Höhe und Ausrichtung entfallen dabei.
 
 Hebräischer Text in `\text{…}` nutzt die vorhandene RTL-Darstellung:
 
@@ -273,8 +276,10 @@ Die Terminalvorschau zeigt hebräische Textwerte eingerückt unter dem
 Feldnamen. Der Absatz selbst bestimmt seine Leserichtung.
 Markdown-Felder mit hebräischem Text erhalten in der Terminalvorschau
 eine beschriftete obere Linie und eine Abschlusslinie.
-Die JSONL-Vorschau blendet interne Quellenmarker der Form
-`<U+E200>cite…<U+E201>` aus.
+Die Terminalvorschau blendet interne Quellenmarker der Form
+`<U+E200>cite…<U+E201>` und einzelne Marker von U+E200 bis U+E202 in
+Markdown-Text und JSONL-Textfeldern aus. Markdown-Codebeispiele und der
+Markdown-Export behalten den Quelltext.
 
 Bei fehlendem `meta` oder `meta: false` gilt `schema` für alle Zeilen.
 `meta: true` stellt die erste Zeile vollständig und rekursiv als Metadaten

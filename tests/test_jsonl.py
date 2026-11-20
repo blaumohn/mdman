@@ -224,9 +224,11 @@ class JsonlCliTest(unittest.TestCase):
     runner = CliRunner()
 
     def test_hides_internal_citation_markers_in_preview(self) -> None:
-        raw_marker = "\ue200cite\ue202turn1view2\ue202turn1view4\ue201"
-        shown_marker = "<U+E200>cite<U+E202>turn2search0<U+E201>"
-        other_text = "cite turn3view0 <U+E200> \ue200"
+        raw_marker = (
+            "<U+E200>\ue200cite\ue202turn1view2\ue202turn1view4\ue201"
+        )
+        shown_marker = "\ue202<U+E200>cite<U+E202>turn2search0<U+E201>"
+        other_text = "cite turn3view0 <U+E203> \ue203"
         with tempfile.TemporaryDirectory() as directory:
             profile = Path(directory) / "profile.json"
             profile.write_text(
@@ -238,7 +240,7 @@ class JsonlCliTest(unittest.TestCase):
                 ["jsonl", str(profile)],
                 input=jsonl(
                     {
-                        "text": f"אחד. {raw_marker}\n{other_text}",
+                        "text": f"אחד.{raw_marker}\n{other_text}",
                         "body": f"לגבי **M**, שלום.{shown_marker}",
                     }
                 ),
@@ -247,6 +249,8 @@ class JsonlCliTest(unittest.TestCase):
         self.assertIn("אחד.", result.output)
         self.assertIn("לגבי M, שלום.", result.output)
         self.assertIn(other_text, result.output)
+        self.assertNotIn("<U+E200>", result.output)
+        self.assertNotIn("\ue202", result.output)
         self.assertNotIn("turn1view", result.output)
         self.assertNotIn("turn2search0", result.output)
 

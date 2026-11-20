@@ -9,6 +9,7 @@ import subprocess
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
+from markdown_it.token import Token
 from rich import box
 from rich.console import Console, Group, RenderableType
 from rich.markdown import Markdown
@@ -23,8 +24,10 @@ from mdman.math import MathMarkdown
 
 _CITATION_MARKER = re.compile(
     r"(?:\ue200|<U\+E200>)cite"
-    r"(?:(?:\ue202|<U\+E202>)turn[0-9]+[a-z]+[0-9]+)+"
-    r"(?:\ue201|<U\+E201>)"
+    r"(?:\s*(?:\ue202|<U\+E202>)\s*turn[0-9]+[a-z]+[0-9]+)+"
+    r"\s*(?:\ue201|<U\+E201>)"
+    r"|[\ue200-\ue202]|<U\+E20[0-2]>",
+    re.IGNORECASE,
 )
 
 
@@ -74,10 +77,7 @@ def _fields_renderables(
     for field in fields:
         label = Text(field.name, style="dim")
         value = field.value
-        if isinstance(value, str) and field.kind in {
-            "string",
-            "markdown",
-        }:
+        if isinstance(value, str) and field.kind == "string":
             value = _CITATION_MARKER.sub("", value)
         if field.kind == "markdown":
             source = str(value)
@@ -132,7 +132,17 @@ def _fields_renderables(
 
 
 def _markdown(source: str) -> Markdown:
-    return MathMarkdown(source)
+    markdown = MathMarkdown(source)
+    _hide_citation_markers(markdown.parsed)
+    return markdown
+
+
+def _hide_citation_markers(tokens: list[Token]) -> None:
+    for token in tokens:
+        if token.type in {"text", "mdman_math"}:
+            token.content = _CITATION_MARKER.sub("", token.content)
+        if token.children:
+            _hide_citation_markers(token.children)
 
 
 def _console(width: int, pager: bool) -> Console:

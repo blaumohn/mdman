@@ -61,6 +61,57 @@ def test_formula_wraps_at_terminal_width() -> None:
     assert result.output.count("↔") == 2
 
 
+@pytest.mark.parametrize("options", ["", "[t][2em][c]"])
+def test_boxed_minipage_renders_hebrew_and_math(options: str) -> None:
+    source = "\n".join(
+        f"  {line:<76}"
+        for line in (
+            r"\[",
+            r"\boxed{",
+            rf"\begin{{minipage}}{options}{{0.8\linewidth}}",
+            r"שלום עולם: \(x^2\)\\",
+            r"המשך ב-C.",
+            r"\end{minipage}",
+            "}",
+            r"\]",
+        )
+    )
+    result = runner.invoke(app, ["-"], input=source)
+    assert result.exit_code == 0, result.output
+    assert "┌" in result.output
+    assert "שלום עולם: x²" in result.output
+    assert "המשך ב-C." in result.output
+    assert r"\begin" not in result.output
+    assert "0.8" not in result.output
+
+
+def test_boxed_minipage_keeps_nested_display_math() -> None:
+    source = r"""
+\[
+\boxed{\begin{minipage}{0.8\linewidth}
+\centering שלום\par
+\[x^2 + \alpha\]
+המשך.
+\end{minipage}}
+\]
+
+Outside the box.
+"""
+    result = runner.invoke(app, ["-"], input=source)
+    assert result.exit_code == 0, result.output
+    body = [
+        line.strip("│ ")
+        for line in result.output.splitlines()
+        if line.startswith("│")
+    ]
+    assert [line for line in body if line] == [
+        "שלום",
+        "x² + α",
+        "המשך.",
+    ]
+    assert "Outside the box." in result.output
+
+
 def test_inline_formula_and_regular_markdown() -> None:
     result = runner.invoke(
         app,
@@ -73,7 +124,12 @@ def test_inline_formula_and_regular_markdown() -> None:
 
 @pytest.mark.parametrize(
     "formula",
-    [r"\unknown{x}", r"\begin{unknown}x\end{unknown}", r"\boxed{a"],
+    [
+        r"\unknown{x}",
+        r"\begin{unknown}x\end{unknown}",
+        r"\boxed{a",
+        r"\boxed{\begin{minipage}{0.8\linewidth}",
+    ],
 )
 def test_unsupported_math_stays_visible(formula: str) -> None:
     source = rf"\[ {formula} \]"
