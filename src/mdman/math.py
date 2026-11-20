@@ -1,4 +1,4 @@
-"""Render LaTeX through pylatexenc, Rich, and terminal BiDi."""
+"""Render LaTeX with the bundled parser, Rich, and terminal BiDi."""
 
 from __future__ import annotations
 
@@ -11,14 +11,6 @@ from markdown_it.rules_core import StateCore
 from markdown_it.token import Token
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 from mdit_py_plugins.texmath import texmath_plugin
-from pylatexenc import (  # type: ignore[import-untyped]
-    latex2text,
-    latexwalker,
-    macrospec,
-)
-from pylatexenc.latexnodes import (  # type: ignore[import-untyped]
-    ParsingStateDeltaLeaveMathMode,
-)
 from rich import box
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.markdown import Markdown, MarkdownElement
@@ -26,6 +18,10 @@ from rich.panel import Panel
 from rich.text import Text
 from unicodeit.data import REPLACEMENTS  # type: ignore[import-untyped]
 
+from mdman._vendor.pylatexenc import latex2text, latexwalker, macrospec
+from mdman._vendor.pylatexenc.latexnodes import (
+    ParsingStateDeltaLeaveMathMode,
+)
 from mdman.bidi import BidiConsole, has_rtl
 
 
@@ -103,9 +99,8 @@ _TEXT_CONTEXT.add_context_category(
 )
 
 
-# Supplement pylatexenc with exact names from UnicodeIt's dataset.
-# Never run its substring replacements on the source: a known prefix in
-# an unknown command (e.g. \iffunknown) must remain unknown.
+# Match whole command names so a known prefix in an unknown command
+# (e.g. \iffunknown) does not get replaced.
 _SYMBOLS = {
     name[1:]: symbol
     for name, symbol in REPLACEMENTS

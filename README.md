@@ -145,13 +145,11 @@ Marker-Paar wird bei jeder `--toc`-Ausgabe beachtet:
 
 ### LaTeX-Formeln im Terminal
 
-Die Terminalvorschau nutzt [pylatexenc](https://pylatexenc.readthedocs.io/en/latest/latex2text/)
-für die Umwandlung von LaTeX in lesbaren Unicode-Text. Damit werden unter
+Die Terminalvorschau wandelt LaTeX mit dem eingebetteten Parser aus
+pylatexenc 3.0b2 in lesbaren Unicode-Text um. Damit werden unter
 anderem mathematische Symbole, griechische Buchstaben, Brüche, Wurzeln,
 Summen, Integrale, Indizes und Matrizen dargestellt. Brüche erscheinen
 linear mit passenden Klammern, zum Beispiel `\frac{a+b}{c}` als `(a + b)/c`.
-Die Darstellung verwendet pylatexenc 3 (derzeit ab Version 3.0b2, einer
-Beta-Version) wegen seiner mathematischen Formatierung und Unicode-Indizes.
 
 ```latex
 \[ P(H\mid D) \propto P(D\mid H)\cdot P(H) \]
@@ -160,10 +158,12 @@ Beta-Version) wegen seiner mathematischen Formatierung und Unicode-Indizes.
 Das ergibt `P(H|D) ∝ P(D|H) · P(H)`.
 
 Zusätzliche Symbolnamen wie `\iff`, `\implies` und `\impliedby`
-werden aus dem Datensatz von [UnicodeIt](https://github.com/svenkreiss/unicodeit)
-übernommen. Auch mehrzeilige Formeln werden umgewandelt, beispielsweise
+stammen aus der Symboltabelle von [UnicodeIt](https://github.com/svenkreiss/unicodeit).
+Auch mehrzeilige Formeln werden umgewandelt, beispielsweise
 `h\sim h' \iff P(F\mid h)=P(F\mid h')` zu
 `h ∼ h' ⇔ P(F|h) = P(F|h')`.
+Quellen und Lizenztexte zu pylatexenc sind bei den
+[eingebetteten Dateien](src/mdman/_vendor/README.md) dokumentiert.
 
 [mdit-py-plugins](https://mdit-py-plugins.readthedocs.io/) erkennt
 Formelblöcke mit `\[ … \]` oder `$$ … $$` und Inline-Formeln mit
