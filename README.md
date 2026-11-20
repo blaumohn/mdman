@@ -28,10 +28,12 @@ die Node-Abhängigkeiten des mitgelieferten Editors aus `editor/package-lock.jso
 Die Installation bleibt an diesen Checkout gebunden; Node.js wird auch beim
 Start des Editors benötigt.
 
-`make setup` installiert UnicodeIt aus dem Branch `fix/symbol-mappings` von
-[`blaumohn/unicodeit`](https://github.com/blaumohn/unicodeit/tree/fix/symbol-mappings).
-Ist der Branch bereits unter `.local/unicodeit` ausgecheckt, installiert das
-Setup UnicodeIt aus diesem Checkout.
+`pyproject.toml` verweist für UnicodeIt auf den Branch `fix/symbol-mappings`
+von [`blaumohn/unicodeit`](https://github.com/blaumohn/unicodeit/tree/fix/symbol-mappings).
+pip verwendet diese Abhängigkeit bei `make setup` und `pip install .`.
+Ist UnicodeIt bereits mit derselben Versionsnummer installiert, kann pip den
+vorhandenen Stand behalten. Zum Wechsel auf den Git-Stand zuerst
+`.venv/bin/python -m pip uninstall unicodeit` ausführen und danach `make setup`.
 
 Direkter Aufruf ohne Wrapper:
 

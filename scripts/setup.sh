@@ -35,18 +35,7 @@ if [ ! -x "$venv_python" ]; then
     python3 -m venv "$venv_dir"
 fi
 
-unicodeit_branch=fix/symbol-mappings
-local_unicodeit="$repo_root/.local/unicodeit"
-if [ -f "$local_unicodeit/setup.py" ] && [ -e "$local_unicodeit/.git" ] &&
-    [ "$(git -C "$local_unicodeit" branch --show-current)" = "$unicodeit_branch" ]; then
-    unicodeit_source="$local_unicodeit"
-else
-    unicodeit_source="unicodeit @ git+https://github.com/blaumohn/unicodeit.git@$unicodeit_branch"
-fi
-
 printf '%s\n' "Installiere mdman in der Repo-venv"
-# Der Fork kann dieselbe Versionsnummer wie die PyPI-Installation haben.
-"$venv_python" -m pip install --force-reinstall --no-deps "$unicodeit_source"
 "$venv_python" -m pip install --editable "$repo_root"
 
 if [ ! -x "$installed_mdman" ]; then
