@@ -15,7 +15,7 @@ from mdman.markdown import (
     extract_headings,
     github_heading_id,
 )
-from mdman.renderer import _less_raw_control_codes
+from mdman.renderer import _less_raw_control_codes, render_markdown
 
 
 class CliTest(unittest.TestCase):
@@ -400,6 +400,52 @@ class CliTest(unittest.TestCase):
             _less_raw_control_codes(),
         ):
             self.assertEqual(os.environ["LESS"], "-R -F")
+
+    def test_hebrew_pager_repaints_when_scrolling(self) -> None:
+        for source, options in (
+            ("שלום **עולם**\n\n" * 40, "-F -R -c -h0 -y0"),
+            ("Hello **world**\n\n" * 40, "-F -R"),
+        ):
+            with (
+                self.subTest(source=source[:20]),
+                patch.dict(
+                    os.environ,
+                    {"PAGER": "less", "MANPAGER": "", "LESS": "-F"},
+                ),
+                patch("mdman.renderer.SystemPager") as pager,
+            ):
+                seen_options: list[str] = []
+                pager.return_value.show.side_effect = (
+                    lambda _content, seen=seen_options: seen.append(
+                        os.environ["LESS"]
+                    )
+                )
+                render_markdown(source, pager=True)
+                self.assertEqual(seen_options, [options])
+                self.assertEqual(os.environ["LESS"], "-F")
+
+    def test_less_repaint_restores_unset_environment_on_error(
+        self,
+    ) -> None:
+        with patch.dict(os.environ, {"PAGER": "less", "MANPAGER": ""}):
+            os.environ.pop("LESS", None)
+            with (
+                self.assertRaisesRegex(RuntimeError, "pager failed"),
+                _less_raw_control_codes(repaint=True),
+            ):
+                self.assertEqual(os.environ["LESS"], "-R -c -h0 -y0")
+                raise RuntimeError("pager failed")
+            self.assertNotIn("LESS", os.environ)
+
+    def test_repaint_does_not_change_other_pagers(self) -> None:
+        with (
+            patch.dict(
+                os.environ,
+                {"PAGER": "more", "MANPAGER": "", "LESS": "-F"},
+            ),
+            _less_raw_control_codes(repaint=True),
+        ):
+            self.assertEqual(os.environ["LESS"], "-F")
 
 
 if __name__ == "__main__":

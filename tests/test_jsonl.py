@@ -314,7 +314,7 @@ class JsonlCliTest(unittest.TestCase):
                     new_callable=PropertyMock,
                     return_value=False,
                 ),
-                patch("rich.console.SystemPager") as pager,
+                patch("mdman.renderer.SystemPager") as pager,
             ):
                 redirected = self.runner.invoke(
                     app, ["jsonl", str(profile)], input=source
@@ -356,11 +356,18 @@ class JsonlCliTest(unittest.TestCase):
                         new_callable=PropertyMock,
                         return_value=True,
                     ),
-                    patch("rich.console.SystemPager") as pager,
+                    patch("mdman.renderer.SystemPager") as pager,
                     patch("mdman.renderer.subprocess.run") as run,
                 ):
                     run.return_value.stdout = (
                         f"less {version}\n".encode()
+                    )
+
+                    def check_scroll_options(_content: str) -> None:
+                        self.assertIn("-c -h0 -y0", os.environ["LESS"])
+
+                    pager.return_value.show.side_effect = (
+                        check_scroll_options
                     )
                     result = self.runner.invoke(
                         app,

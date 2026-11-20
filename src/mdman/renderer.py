@@ -14,6 +14,7 @@ from rich import box
 from rich.console import Console, Group, RenderableType
 from rich.markdown import Markdown
 from rich.padding import Padding
+from rich.pager import Pager, SystemPager
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
@@ -164,17 +165,22 @@ def _print(
     renderable: RenderableType, *, console: Console, pager: bool
 ) -> None:
     if pager:
-        with (
-            _less_raw_control_codes(),
-            console.pager(styles=True, links=False),
+        with console.pager(
+            pager=_TerminalPager(), styles=True, links=False
         ):
             console.print(renderable)
     else:
         console.print(renderable)
 
 
+class _TerminalPager(Pager):
+    def show(self, content: str) -> None:
+        with _less_raw_control_codes(repaint=has_rtl(content)):
+            SystemPager().show(content)
+
+
 @contextlib.contextmanager
-def _less_raw_control_codes() -> Iterator[None]:
+def _less_raw_control_codes(*, repaint: bool = False) -> Iterator[None]:
     if not _less_command():
         yield
         return
@@ -182,7 +188,12 @@ def _less_raw_control_codes() -> Iterator[None]:
     previous_less = os.environ.get("LESS")
     less_options = previous_less or ""
     if not re.search(r"(?:^|\s)-[^\s]*[rR]", less_options):
-        os.environ["LESS"] = f"{less_options} -R".strip()
+        less_options = f"{less_options} -R".strip()
+    if repaint:
+        # Partial scrolling can leave stale BiDi rows when changing
+        # direction (Ctrl-D, then Ctrl-U). Repaint from the top instead.
+        less_options = f"{less_options} -c -h0 -y0".strip()
+    os.environ["LESS"] = less_options
     try:
         yield
     finally:
