@@ -75,12 +75,9 @@ class CliTest(unittest.TestCase):
         )
 
         self.assertEqual(result.exit_code, 0)
-        self.assertIn("Inhaltsverzeichnis", result.output)
-        self.assertLess(
-            result.output.index("Inhaltsverzeichnis"),
-            result.output.index("Titel"),
-        )
-        self.assertIn("#titel", add_toc("# Titel\n"))
+        self.assertNotIn("Inhaltsverzeichnis", result.output)
+        toc = add_toc("# Titel\n")
+        self.assertTrue(toc.startswith("- [Titel](#titel)"))
 
     def test_toc_preserves_heading_hierarchy(self) -> None:
         source = (
@@ -103,6 +100,21 @@ class CliTest(unittest.TestCase):
         self.assertEqual(github_heading_id("A\tB"), "ab")
         self.assertEqual(github_heading_id("Über Θ! uns"), "über-θ-uns")
 
+    def test_github_heading_id_keeps_hyphen_and_underscore(
+        self,
+    ) -> None:
+        """Bindestrich und Unterstrich bleiben, Gedankenstrich nicht."""
+        self.assertEqual(
+            github_heading_id("7. Repository-Aufbau"),
+            "7-repository-aufbau",
+        )
+        self.assertEqual(
+            github_heading_id("8. Weg zum ersten Go-live"),
+            "8-weg-zum-ersten-go-live",
+        )
+        self.assertEqual(github_heading_id("snake_case"), "snake_case")
+        self.assertEqual(github_heading_id("A – B"), "a--b")
+
     def test_empty_heading_after_markup_is_skipped(self) -> None:
         self.assertEqual(extract_headings("# **~~**\n"), [])
 
@@ -115,8 +127,71 @@ class CliTest(unittest.TestCase):
         )
 
         self.assertEqual(result.exit_code, 0)
-        self.assertIn("**Inhaltsverzeichnis**", result.output)
+        self.assertNotIn("Inhaltsverzeichnis", result.output)
         self.assertIn("- [Titel](#titel)", result.output)
+
+    def test_markdown_output_uses_existing_toc_markers(self) -> None:
+        source = (
+            "# Seite\n\n"
+            f"{TOC_START_MARKER}\n"
+            f"{TOC_END_MARKER}\n\n"
+            "## Abschnitt\n"
+        )
+
+        result = self.runner.invoke(
+            app,
+            ["--format", "markdown", "--toc", "-"],
+            input=source,
+        )
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertNotIn("- [Seite](#seite)", result.output)
+        self.assertIn("- [Abschnitt](#abschnitt)", result.output)
+
+    def test_toc_markers_at_document_start(self) -> None:
+        source = f"{TOC_START_MARKER}\n{TOC_END_MARKER}\n\n# Titel\n"
+
+        toc = add_toc(source)
+
+        self.assertTrue(toc.startswith(f"{TOC_START_MARKER}\n"))
+        self.assertEqual(toc.count(TOC_START_MARKER), 1)
+        self.assertEqual(toc.count(TOC_END_MARKER), 1)
+        self.assertIn("- [Titel](#titel)", toc)
+
+    def test_toc_markers_between_content_blocks(self) -> None:
+        source = (
+            "# Seite\n\n"
+            "Einleitung.\n\n"
+            f"{TOC_START_MARKER}\n"
+            f"{TOC_END_MARKER}\n\n"
+            "Zwischentext.\n\n"
+            "## Abschnitt\n"
+        )
+
+        toc = add_toc(source)
+
+        self.assertNotIn("- [Seite](#seite)", toc)
+        self.assertIn("- [Abschnitt](#abschnitt)", toc)
+
+    def test_toc_hierarchy_starts_after_end_marker(self) -> None:
+        source = (
+            "# Seite\n\n"
+            "## Navigation\n\n"
+            f"{TOC_START_MARKER}\n"
+            f"{TOC_END_MARKER}\n\n"
+            "### Erster Abschnitt\n\n"
+            "#### Detail\n"
+        )
+
+        toc = add_toc(source)
+
+        self.assertNotIn("- [Seite](#seite)", toc)
+        self.assertNotIn("- [Navigation](#navigation)", toc)
+        self.assertIn(
+            "- [Erster Abschnitt](#erster-abschnitt)\n"
+            "  - [Detail](#detail)",
+            toc,
+        )
 
     def test_markdown_format_rejects_pager(self) -> None:
         result = self.runner.invoke(
@@ -165,6 +240,82 @@ class CliTest(unittest.TestCase):
             self.assertEqual(written.count(TOC_END_MARKER), 1)
             self.assertIn("- [Neu](#neu)", written)
             self.assertNotIn("- [Alt](#alt)", written)
+
+    def test_in_place_writes_toc_between_existing_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            filename = Path(directory) / "beispiel.md"
+            filename.write_text(
+                "[Navigation](#abschnitt)\n\n"
+                f"{TOC_START_MARKER}\n"
+                "Alter TOC\n"
+                f"{TOC_END_MARKER}\n\n"
+                "## Abschnitt\n",
+                encoding="utf-8",
+            )
+
+            result = self.runner.invoke(
+                app, ["--toc", "-i", str(filename)]
+            )
+
+            self.assertEqual(result.exit_code, 0)
+            written = filename.read_text(encoding="utf-8")
+            self.assertLess(
+                written.index("[Navigation](#abschnitt)"),
+                written.index(TOC_START_MARKER),
+            )
+            self.assertLess(
+                written.index(TOC_START_MARKER),
+                written.index("- [Abschnitt](#abschnitt)"),
+            )
+            self.assertLess(
+                written.index("- [Abschnitt](#abschnitt)"),
+                written.index(TOC_END_MARKER),
+            )
+            self.assertNotIn("Alter TOC", written)
+
+    def test_in_place_toc_ignores_headings_before_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            filename = Path(directory) / "beispiel.md"
+            filename.write_text(
+                "# Seite\n\n"
+                f"{TOC_START_MARKER}\n"
+                f"{TOC_END_MARKER}\n\n"
+                "## Abschnitt\n\n### Detail\n",
+                encoding="utf-8",
+            )
+
+            result = self.runner.invoke(
+                app, ["--toc", "-i", str(filename)]
+            )
+
+            self.assertEqual(result.exit_code, 0)
+            written = filename.read_text(encoding="utf-8")
+            self.assertNotIn("- [Seite](#seite)", written)
+            self.assertIn("- [Abschnitt](#abschnitt)", written)
+            self.assertIn("  - [Detail](#detail)", written)
+
+    def test_in_place_clears_toc_without_following_headings(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            filename = Path(directory) / "beispiel.md"
+            filename.write_text(
+                f"{TOC_START_MARKER}\n"
+                "- [Alt](#alt)\n\n---\n"
+                f"{TOC_END_MARKER}\n\n"
+                "Nur noch Text.\n",
+                encoding="utf-8",
+            )
+
+            result = self.runner.invoke(
+                app, ["--toc", "-i", str(filename)]
+            )
+
+            self.assertEqual(result.exit_code, 0)
+            written = filename.read_text(encoding="utf-8")
+            self.assertNotIn("- [Alt](#alt)", written)
+            self.assertIn(TOC_START_MARKER, written)
+            self.assertIn(TOC_END_MARKER, written)
 
     def test_in_place_preserves_file_mode(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

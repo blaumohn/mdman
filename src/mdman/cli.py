@@ -13,6 +13,7 @@ import typer
 from typer.core import TyperGroup
 
 from mdman import __version__
+from mdman.editor import edit
 from mdman.jsonl import JsonlError, read_entries
 from mdman.markdown import add_toc
 from mdman.profile_commands import ProfileHelpCommand, profiles_app
@@ -54,6 +55,10 @@ app = typer.Typer(
     epilog="Kurzform: mdman DATEI entspricht mdman render DATEI.",
 )
 app.add_typer(profiles_app, name="profiles")
+app.command(
+    "edit",
+    help="Markdown im Browser bearbeiten.",
+)(edit)
 
 
 def main() -> None:
@@ -92,7 +97,7 @@ def render_command(
         bool,
         typer.Option(
             "--toc",
-            help="Inhaltsverzeichnis in das Dokument einfügen.",
+            help="TOC in das Dokument einfügen.",
         ),
     ] = False,
     output_format: Annotated[
@@ -148,7 +153,7 @@ def render_command(
                 param_hint="--pager",
             )
         if toc:
-            source = add_toc(source, markers=in_place)
+            source = add_toc(source, add_markers=in_place)
         if in_place:
             assert filename is not None and filename != "-"
             write_source_in_place(filename, source)
@@ -156,7 +161,7 @@ def render_command(
             typer.echo(source, nl=False)
         else:
             render_markdown(source, width=width, pager=pager)
-    except (OSError, UnicodeError) as error:
+    except (OSError, UnicodeError, JsonlError) as error:
         typer.echo(f"mdman: {error}", err=True)
         raise typer.Exit(code=1) from error
 

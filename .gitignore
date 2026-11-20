@@ -5,3 +5,8 @@ __pycache__/
 .pytest_cache/
 .local/
 *.egg-info/
+node_modules/
+editor/dist/
+*.tsbuildinfo
+.mypy_cache/
+.ruff_cache/

@@ -6,31 +6,56 @@ import unicodedata
 TOC_START_MARKER = "<!-- mdman:toc:start -->"
 TOC_END_MARKER = "<!-- mdman:toc:end -->"
 
+# GitHub entfernt Satzzeichen, behält aber Bindestrich-Minus und
+# Unterstrich: "Repository-Aufbau" wird zu "repository-aufbau", nicht
+# zu "repositoryaufbau". Beide sind Unicode-Satzzeichen (Pd bzw. Pc)
+# und fielen sonst mit weg. Die Ausnahme gilt genau diesen zwei
+# ASCII-Zeichen, nicht ihren Kategorien: der Gedankenstrich ist
+# ebenfalls Pd und wird weiterhin entfernt.
+KEPT_PUNCTUATION = "-_"
 
-def add_toc(source: str, *, markers: bool = False) -> str:
-    if markers:
-        source = remove_marked_toc(source)
-    headings = _extract_heading_entries(source)
+
+def add_toc(source: str, *, add_markers: bool = False) -> str:
+    toc_match = find_marked_toc(source)
+    heading_source = (
+        source if toc_match is None else source[toc_match.end() :]
+    )
+    headings = _extract_heading_entries(heading_source)
     if not headings:
+        if toc_match is not None:
+            return replace_marked_toc(source, "", toc_match)
         return source
     first_level = min(level for level, _, _ in headings)
     links = "\n".join(
         f"{'  ' * max(level - first_level, 0)}- [{text}](#{heading_id})"
         for level, text, heading_id in headings
     )
-    toc = f"**Inhaltsverzeichnis**\n\n{links}\n\n---"
-    if markers:
+    toc = f"{links}\n\n---"
+    if toc_match is not None:
+        return replace_marked_toc(source, toc, toc_match)
+    if add_markers:
         toc = f"{TOC_START_MARKER}\n{toc}\n{TOC_END_MARKER}"
     return f"{toc}\n\n{source}"
 
 
-def remove_marked_toc(source: str) -> str:
+def find_marked_toc(source: str) -> re.Match[str] | None:
     pattern = re.compile(
         rf"^{re.escape(TOC_START_MARKER)}\n.*?"
-        rf"^{re.escape(TOC_END_MARKER)}(?:\n|$)",
+        rf"^{re.escape(TOC_END_MARKER)}",
         re.MULTILINE | re.DOTALL,
     )
-    return pattern.sub("", source, count=1)
+    return pattern.search(source)
+
+
+def replace_marked_toc(
+    source: str, toc: str, toc_match: re.Match[str]
+) -> str:
+    marked_toc = f"{TOC_START_MARKER}\n{toc}\n{TOC_END_MARKER}"
+    return (
+        source[: toc_match.start()]
+        + marked_toc
+        + source[toc_match.end() :]
+    )
 
 
 def extract_headings(source: str) -> list[tuple[str, str]]:
@@ -46,6 +71,7 @@ def github_heading_id(title: str) -> str:
         character
         for character in title
         if character == " "
+        or character in KEPT_PUNCTUATION
         or not (
             character.isspace()
             or unicodedata.category(character).startswith("P")

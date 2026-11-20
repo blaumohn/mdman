@@ -1,0 +1,159 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.file-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid #ddd;
+  background: #f8f8f8;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.external-update {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #7a3f00;
+  font-size: 0.9rem;
+}
+
+.view-toggle button.active {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.pane-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-pane {
+  flex: 1;
+  overflow: auto;
+}
+
+.preview-pane {
+  flex: 1;
+  overflow: auto;
+  padding: 1.5rem;
+}
+
+.preview-pane .wmde-markdown {
+  padding: 1rem;
+}
+
+.preview-pane .mermaid-diagram {
+  display: block;
+  overflow-x: auto;
+  padding: 1rem;
+  background: #fff;
+  text-align: center;
+}
+
+.preview-pane .mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.preview-pane .mermaid-error {
+  display: block;
+  margin-top: 0.5rem;
+  color: #b00020;
+  white-space: pre-wrap;
+}
+
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .file-bar {
+    display: none;
+  }
+
+  .editor-pane {
+    display: none;
+  }
+
+  .preview-pane {
+    flex: none;
+    width: 100%;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .app-layout,
+  .pane-layout {
+    display: block;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+}
+
+.filename {
+  overflow-wrap: anywhere;
+}
+
+.error {
+  padding: 0.75rem;
+  color: #9b1616;
+  background: #fff0f0;
+}
+
+@media print {
+  .error {
+    display: none;
+  }
+}
+
+.file-browser {
+  width: 310px;
+  padding: 0.5rem;
+  overflow: auto;
+  flex-shrink: 0;
+  border-right: 1px solid #ddd;
+}
+
+.file-browser p {
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  .file-browser {
+    display: none;
+  }
+}

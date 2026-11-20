@@ -1,17 +1,32 @@
 # mdman
 
-Ein kleiner, monochromer Markdown-Reader für das Terminal.
+Ein Kommandozeilenwerkzeug zum Lesen von Markdown im Terminal und zum
+Bearbeiten mit HTML- und Druckvorschau im lokalen Browser.
+
+```bash
+mdman README.md          # monochrome Terminalausgabe
+mdman edit README.md     # Browser-Editor mit GFM und Mermaid
+```
+
+Im Browser lassen sich Links zu weiteren Markdown-Dateien direkt verfolgen.
+Ein weiterer Aufruf mit einer anderen Datei verwendet den laufenden Server.
 
 ## Installation
 
+Voraussetzungen: Python ≥ 3.10 mit `venv`, Node.js ≥ 22.12 mit npm und Make.
+Im geklonten `mdman`-Repo genügt:
+
 ```bash
-./scripts/setup.sh
+make setup
 ```
 
-Das Skript legt `.venv/` im Repo an, installiert `mdman` dort editable und
+Das Setup (`scripts/setup.sh`) legt `.venv/` im Repo an, installiert `mdman` dort editable und
 verknüpft den Befehl standardmäßig nach `~/.local/bin/mdman`. Der Symlink zeigt
 direkt auf die Repo-venv. Ein anderer Installationsort kann mit
-`MDMAN_BIN_DIR=/pfad/bin ./scripts/setup.sh` gewählt werden.
+`MDMAN_BIN_DIR=/pfad/bin make setup` gewählt werden. Es installiert außerdem
+die Node-Abhängigkeiten des mitgelieferten Editors aus `editor/package-lock.json`.
+Die Installation bleibt an diesen Checkout gebunden; Node.js wird auch beim
+Start des Editors benötigt.
 
 Direkter Aufruf ohne Wrapper:
 
@@ -42,6 +57,54 @@ Testprüfungen startet mit:
 make check
 ```
 
+`make` ohne Argument zeigt nur die verfügbaren Ziele.
+
+## Im Browser bearbeiten
+
+Der Editor startet mit einer einzelnen vorhandenen `.md`- oder `.markdown`-Datei:
+
+```bash
+mdman edit README.md
+```
+
+Der erste Aufruf startet Vite auf `127.0.0.1:5173` und gibt die Adresse aus.
+Der Browser bleibt standardmäßig geschlossen; `--open` öffnet ihn automatisch.
+Dieser Prozess läuft bis Strg+C. Aus einem weiteren Terminal lassen sich
+beliebige weitere Dateien im selben Server öffnen, auch aus anderen Ordnern:
+
+```bash
+mdman edit /pfad/zu/docs/anleitung.md --open
+```
+
+Ein Wechsel von `MD_DIR` oder ein Serverneustart ist dafür nicht nötig.
+`--port 5174` wählt einen anderen Port. Folgeaufrufe verwenden denselben Port.
+
+In der HTML-Vorschau öffnen lokale Markdown-Links ihre Zielseite im Editor,
+auch über Unterordner oder `../` und mit Sprungmarken. Zurück und Vorwärts
+im Browser wechseln zwischen besuchten Dokumenten. Relative Bilder werden
+vom Speicherort der Quelldatei aus aufgelöst. Weblinks bleiben Browserlinks;
+PDFs, Bilder und Textdateien öffnet der Browser, andere Dateien lädt er herunter.
+Fehlende Markdown-Ziele erscheinen als sichtbare Fehlermeldung.
+
+Über **Dateien** steht ergänzend ein Dateibaum mit Unterordnern zur Verfügung,
+umgesetzt mit [React Arborist](https://github.com/jameskerr/react-arborist).
+Er zeigt Markdown-Dateien unter dem Ordner des geöffneten Einstiegsdokuments;
+versteckte Ordner, Symlinks und `node_modules` werden nicht durchsucht.
+**Aktualisieren** liest den Baum erneut ein.
+
+**Geteilt** zeigt Editor und Vorschau, **Vorschau** nur das gerenderte Dokument.
+**Drucken** nutzt die Druckansicht ohne Bedienelemente. GFM unterstützt Tabellen,
+Aufgabenlisten, Durchstreichungen, automatische Links und Fußnoten; Mermaid
+rendert Diagramme. Die Ausgabe ist keine garantierte Kopie aller GitHub-Funktionen.
+
+**Speichern** schreibt die Quelldatei. Bei ungespeicherten Änderungen fragt der
+Editor vor einem Dokumentwechsel nach. Erkannte externe Änderungen werden vor
+dem Überschreiben gemeldet; **Neu laden** übernimmt den aktuellen Dateistand.
+
+Die Browser-Anwendung stammt aus `md-print-editor` und liegt als eigenes
+Node-Projekt unter [`editor/`](editor/README.md). Aufbau, Übernahme und lokale
+Entwicklung sind dort beschrieben.
+
 ## Verwendung
 
 ```bash
@@ -59,14 +122,79 @@ Die Ausgabe ist standardmäßig ohne Farbe und auf 80 Spalten begrenzt. Mit
 angezeigt.
 Bei `less` wird die Option `-R` automatisch aktiviert, damit Richs
 Formatierungen erhalten bleiben.
-Mit `--toc` wird ein hierarchisches Inhaltsverzeichnis in das Dokument
-eingefügt. `--format markdown` gibt das verarbeitete Markdown direkt auf
-stdout aus. Markdown kann auch direkt über stdin kommen, zum Beispiel mit
-`cat dokument.md | mdman`.
+Bei hebräischen Absätzen hält die Vorschau kurze lateinische Einschübe
+beim Umbruch mit dem vorangehenden Wort zusammen. Die interaktive
+Vorschau kennzeichnet hebräische Zeilen für die Rechts-nach-links-Darstellung
+des Terminals. `less` kann diese Richtungsangabe ab Version 529 weitergeben.
+Mit `--toc` wird ein hierarchischer TOC ohne sprachabhängige Überschrift in
+das Dokument eingefügt. `--format markdown` gibt das verarbeitete Markdown
+direkt auf stdout aus. Markdown kann auch direkt über stdin kommen, zum
+Beispiel mit `cat dokument.md | mdman`.
 Mit `-i` wird die Markdown-Ausgabe zusammen mit `--toc` atomar in dieselbe
 Datei zurückgeschrieben. Das funktioniert nur mit einer echten Datei und
 nicht zusammen mit `--pager`; der erzeugte TOC-Bereich wird markiert und bei
-weiteren Aufrufen ersetzt.
+weiteren Aufrufen ersetzt. Mit einem eigenen Marker-Paar kann die Position
+vorgegeben werden, etwa nach einer Markdown-Navigation. Es werden nur die
+Überschriften nach dem End-Marker in den TOC aufgenommen. Dieses
+Marker-Paar wird bei jeder `--toc`-Ausgabe beachtet:
+
+```markdown
+<!-- mdman:toc:start -->
+<!-- mdman:toc:end -->
+```
+
+### LaTeX-Formeln im Terminal
+
+Die Terminalvorschau nutzt [pylatexenc](https://pylatexenc.readthedocs.io/en/latest/latex2text/)
+für die Umwandlung von LaTeX in lesbaren Unicode-Text. Damit werden unter
+anderem mathematische Symbole, griechische Buchstaben, Brüche, Wurzeln,
+Summen, Integrale, Indizes und Matrizen dargestellt. Brüche erscheinen
+linear mit passenden Klammern, zum Beispiel `\frac{a+b}{c}` als `(a + b)/c`.
+Die Darstellung verwendet pylatexenc 3 (derzeit ab Version 3.0b2, einer
+Beta-Version) wegen seiner mathematischen Formatierung und Unicode-Indizes.
+
+```latex
+\[ P(H\mid D) \propto P(D\mid H)\cdot P(H) \]
+```
+
+Das ergibt `P(H|D) ∝ P(D|H) · P(H)`.
+
+Zusätzliche Symbolnamen wie `\iff`, `\implies` und `\impliedby`
+werden aus dem Datensatz von [UnicodeIt](https://github.com/svenkreiss/unicodeit)
+übernommen. Auch mehrzeilige Formeln werden umgewandelt, beispielsweise
+`h\sim h' \iff P(F\mid h)=P(F\mid h')` zu
+`h ∼ h' ⇔ P(F|h) = P(F|h')`.
+
+[mdit-py-plugins](https://mdit-py-plugins.readthedocs.io/) erkennt
+Formelblöcke mit `\[ … \]` oder `$$ … $$` und Inline-Formeln mit
+`\( … \)` oder `$…$`. Mehrere Formelblöcke können direkt aufeinanderfolgen.
+Für `\boxed{…}` wird zusätzlich die Schreibweise `[ … ]` erkannt.
+Ein Inline-Rahmen erscheint als `⟦…⟧`.
+
+Hebräischer Text in `\text{…}` nutzt die vorhandene RTL-Darstellung:
+
+```latex
+\[
+\boxed{ \text{מבנה סמנטי ב-}C \leftrightarrow \text{חוויה/רעיון}
+        \leftrightarrow \text{המשך הדינמיקה של }C. }
+\]
+```
+
+Im interaktiven Terminal erhalten hebräische Rahmen wie die JSONL-Felder
+nur horizontale Begrenzungen, damit die Terminal-Leserichtung die
+seitlichen Linien nicht verschiebt.
+
+Unicode liefert eine Textannäherung und keinen vollständigen LaTeX-Satz.
+Nicht alle Hoch- und Tiefstellungen existieren als Unicode-Zeichen.
+Daher bleiben beispielsweise `\mathcal{S}=\{0,1\}^*` als
+`𝒮 = {0, 1}^*` und `\mathcal{C}_{phys}` als `𝒞_phys` lesbar erhalten.
+Außerhalb von Formelbegrenzungen werden Zeichenfolgen wie `𝒞_phys`
+als normaler Markdown-Text behandelt.
+Unbekannte Befehle und Umgebungen sowie syntaktisch ungültige Formeln
+bleiben als Quelltext sichtbar. Codeblöcke, Inline-Code und
+`--format markdown` behalten die ursprüngliche Schreibweise. Die
+Formeldarstellung gilt für die Terminalvorschau einschließlich
+Markdown-Feldern in JSONL.
 
 ### JSONL-Vorschau
 
@@ -141,6 +269,12 @@ unterscheidbar bleibt. `date` akzeptiert ISO-Datumswerte und
 ISO-Zeitstempel und erhält ihre Schreibweise. `number` akzeptiert
 JSON-Zahlen. Objekte werden eingerückt, Listen wiederholen die Darstellung
 ihrer Elemente. Leere Objekte und Listen erscheinen als `{}` und `[]`.
+Die Terminalvorschau zeigt hebräische Textwerte eingerückt unter dem
+Feldnamen. Der Absatz selbst bestimmt seine Leserichtung.
+Markdown-Felder mit hebräischem Text erhalten in der Terminalvorschau
+eine beschriftete obere Linie und eine Abschlusslinie.
+Die JSONL-Vorschau blendet interne Quellenmarker der Form
+`<U+E200>cite…<U+E201>` aus.
 
 Bei fehlendem `meta` oder `meta: false` gilt `schema` für alle Zeilen.
 `meta: true` stellt die erste Zeile vollständig und rekursiv als Metadaten
