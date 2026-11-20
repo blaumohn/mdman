@@ -15,7 +15,7 @@ from typer.core import TyperGroup
 from mdman import __version__
 from mdman.jsonl import JsonlError, read_entries
 from mdman.markdown import add_toc
-from mdman.profile_commands import profile_help, profiles_app
+from mdman.profile_commands import ProfileHelpCommand, profiles_app
 from mdman.profiles import ProfileError, load_profile
 from mdman.renderer import render_entries, render_markdown
 
@@ -164,7 +164,7 @@ def render_command(
 @app.command(
     "jsonl",
     help="JSONL mit einem Darstellungsprofil anzeigen.",
-    epilog=profile_help(),
+    cls=ProfileHelpCommand,
 )
 def jsonl_command(
     profile: Annotated[

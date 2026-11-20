@@ -165,10 +165,17 @@ class ProfileCommandsTest(unittest.TestCase):
                     "profiles schema",
                 ):
                     self.assertIn(text, result.output)
-                self.assertIn('"meta": true', result.output)
-                self.assertIn(
-                    '"description": "markdown"', result.output
+                lines = [
+                    line.strip() for line in result.output.splitlines()
+                ]
+                self.assertIn('"meta": true', lines)
+                self.assertIn('"description": "markdown"', lines)
+                self.assertIn("{", lines)
+                self.assertTrue(
+                    any(line.startswith("Objekte —") for line in lines),
+                    result.output,
                 )
+                self.assertNotIn("```", result.output)
 
     def test_schema_changes_feed_help_and_validation(self) -> None:
         schema = copy.deepcopy(PROFILE_SCHEMA)

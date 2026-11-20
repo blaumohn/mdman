@@ -5,8 +5,11 @@ from typing import Annotated, Any
 
 import typer
 from rich.console import Console
+from rich.markdown import Markdown
+from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
+from typer.core import TyperCommand, TyperGroup
 
 from mdman.profiles import (
     PROFILE_SCHEMA,
@@ -55,11 +58,27 @@ def profile_help() -> str:
     return "\n\n".join(blocks)
 
 
+class ProfileHelpCommand(TyperCommand):
+    def format_help(self, ctx: Any, formatter: Any) -> None:
+        super().format_help(ctx, formatter)
+        Console(width=ctx.terminal_width).print(
+            Padding(Markdown(profile_help()), 1)
+        )
+
+
+class ProfileHelpGroup(TyperGroup):
+    def format_help(self, ctx: Any, formatter: Any) -> None:
+        super().format_help(ctx, formatter)
+        Console(width=ctx.terminal_width).print(
+            Padding(Markdown(profile_help()), 1)
+        )
+
+
 profiles_app = typer.Typer(
+    cls=ProfileHelpGroup,
     help="Darstellungsprofile finden, prüfen und ihr Format anzeigen.",
     no_args_is_help=True,
     rich_markup_mode="markdown",
-    epilog=profile_help(),
 )
 
 
