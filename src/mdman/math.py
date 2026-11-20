@@ -15,14 +15,13 @@ from rich import box
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.markdown import Markdown, MarkdownElement
 from rich.panel import Panel
-from rich.text import Text
 from unicodeit.data import REPLACEMENTS  # type: ignore[import-untyped]
 
 from mdman._vendor.pylatexenc import latex2text, latexwalker, macrospec
 from mdman._vendor.pylatexenc.latexnodes import (
     ParsingStateDeltaLeaveMathMode,
 )
-from mdman.bidi import BidiConsole, has_rtl
+from mdman.bidi import BidiConsole, MathText, has_rtl
 
 
 def _literal_text(node: Any, l2tobj: Any) -> Any:
@@ -291,7 +290,7 @@ class _MathElement(MarkdownElement):
     def __rich_console__(
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
-        text = Text(self.text)
+        text = MathText(self.text)
         if self.framed:
             # Match the existing RTL Markdown field frames: vertical
             # edges can be moved into the text by terminal BiDi engines.

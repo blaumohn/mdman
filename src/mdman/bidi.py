@@ -13,6 +13,7 @@ from rich.text import Text
 
 _RTL_TYPES = {"R", "AL"}
 _STRONG_TYPES = _RTL_TYPES | {"L"}
+_MATH_ARROW = re.compile(r"(?<!\S)[←→↔↦⇐⇒⇔⟵⟶⟷⟸⟹⟺⟼](?!\S)")
 
 
 def has_rtl(text: str) -> bool:
@@ -29,13 +30,14 @@ def _direction(text: str) -> str | None:
     return None
 
 
-def _wrap_offsets(text: str, width: int, *, fold: bool) -> list[int]:
-    if _direction(text) not in _RTL_TYPES:
+def _wrap_offsets(
+    text: str, width: int, *, fold: bool, math_chain: bool
+) -> list[int]:
+    if not math_chain and _direction(text) not in _RTL_TYPES:
         return divide_line(text, width, fold=fold)
 
-    # Keep short Latin runs and numbers with their preceding RTL word
-    # so the next line starts in RTL. The replacement is only for Rich's
-    # word-boundary calculation. The original Text supplies the output.
+    # Keep short Latin runs and numbers with their preceding RTL word.
+    # The replacement affects only Rich's word-boundary calculation.
     wrap_text = list(text)
     rtl_start: int | None = None
     group_width = 0
@@ -44,6 +46,8 @@ def _wrap_offsets(text: str, width: int, *, fold: bool) -> list[int]:
         if _direction(word[0]) in _RTL_TYPES:
             rtl_start = word.start()
             group_width = cell_len(word[0])
+        elif math_chain and _MATH_ARROW.fullmatch(word[0]):
+            rtl_start = None
         elif rtl_start is not None:
             group_width += cell_len(text[previous_end : word.end()])
             if group_width <= width:
@@ -53,6 +57,10 @@ def _wrap_offsets(text: str, width: int, *, fold: bool) -> list[int]:
                 )
         previous_end = word.end()
     return divide_line("".join(wrap_text), width, fold=fold)
+
+
+class MathText(Text):
+    """Display math that can contain RTL operands in an LTR chain."""
 
 
 class BidiConsole(Console):
@@ -92,9 +100,19 @@ class BidiConsole(Console):
         result = Lines()
         for paragraph in text.split(allow_blank=True):
             paragraph.expand_tabs(tab_size)
+            direction = _direction(paragraph.plain)
+            math_chain = (
+                self.embed_rtl
+                and isinstance(text, MathText)
+                and direction == "L"
+                and _MATH_ARROW.search(paragraph.plain) is not None
+            )
             lines = paragraph.divide(
                 _wrap_offsets(
-                    paragraph.plain, width, fold=overflow == "fold"
+                    paragraph.plain,
+                    width,
+                    fold=overflow == "fold",
+                    math_chain=math_chain,
                 )
             )
             for line in lines:
@@ -102,16 +120,37 @@ class BidiConsole(Console):
             lines.justify(self, width, justify, overflow)
             for line in lines:
                 line.truncate(width, overflow=overflow)
-            if (
-                self.embed_rtl
-                and _direction(paragraph.plain) in _RTL_TYPES
-            ):
-                lines = Lines(_rtl_embedding(line) for line in lines)
+            if math_chain:
+                lines = Lines(_math_chain_line(line) for line in lines)
+            elif self.embed_rtl and direction in _RTL_TYPES:
+                lines = Lines(_embed(line, "\u202b") for line in lines)
             result.extend(lines)
         yield from Text("\n").join(result).render(self, end=text.end)
 
 
-def _rtl_embedding(line: Text) -> Text:
+def _math_chain_line(line: Text) -> Text:
+    offsets = [
+        offset
+        for arrow in _MATH_ARROW.finditer(line.plain)
+        for offset in arrow.span()
+    ]
+    # Isolate each RTL operand, including trailing Latin variables. The
+    # arrows stay in the LTR formula even on wrapped continuation lines.
+    parts = line.divide(offsets)
+    return _embed(
+        Text.assemble(
+            *(
+                _embed(part, "\u2067", "\u2069")
+                if _direction(part.plain) in _RTL_TYPES
+                else part
+                for part in parts
+            )
+        ),
+        "\u202a",
+    )
+
+
+def _embed(line: Text, opener: str, closer: str = "\u202c") -> Text:
     plain = line.plain
     start = len(plain) - len(plain.lstrip())
     end = len(plain.rstrip())
@@ -119,5 +158,5 @@ def _rtl_embedding(line: Text) -> Text:
         return line
     # Keep padding and frame characters outside the directional range.
     return Text.assemble(
-        line[:start], "\u202b", line[start:end], "\u202c", line[end:]
+        line[:start], opener, line[start:end], closer, line[end:]
     )

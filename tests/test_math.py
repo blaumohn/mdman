@@ -166,6 +166,52 @@ def test_jsonl_markdown_uses_math_renderer(tmp_path: Path) -> None:
     assert result.output.count("↔") == 2
 
 
+@pytest.mark.parametrize("width", [80, 26])
+def test_jsonl_hebrew_arrow_chain_keeps_variables_in_operands(
+    tmp_path: Path, width: int
+) -> None:
+    profile = tmp_path / "profile.json"
+    profile.write_text(
+        '{"schema":{"text":"markdown"}}', encoding="utf-8"
+    )
+    formula = r"""\[
+R
+\rightarrow
+\text{עוד מופעים תואמים של }R
+\rightarrow
+\text{עוד מבנה משותף}
+\rightarrow
+\text{יציבות גבוהה יותר של }R.
+\]"""
+    with patch(
+        "mdman.renderer.Console.is_terminal",
+        new_callable=PropertyMock,
+        return_value=True,
+    ):
+        result = runner.invoke(
+            app,
+            ["jsonl", str(profile), "--width", str(width)],
+            input=json.dumps({"text": formula}, ensure_ascii=False),
+            env={"COLUMNS": "80", "TERM": "xterm-256color"},
+        )
+    assert result.exit_code == 0, result.output
+    lines = [
+        line for line in result.output.splitlines() if "\u202a" in line
+    ]
+    chain = "\n".join(lines)
+    assert lines
+    assert (len(lines) == 1) == (width == 80)
+    assert "\u202aR → \u2067עוד מופעים" in chain
+    assert re.search(
+        r"של R\u2069\s+→ \u2067עוד מבנה משותף\u2069", chain
+    )
+    assert "של R.\u2069\u202c" in chain
+    assert chain.count("→") == 3
+    assert all(
+        line.count("\u2067") == line.count("\u2069") for line in lines
+    )
+
+
 @pytest.mark.parametrize(
     ("formula", "expected"),
     [
