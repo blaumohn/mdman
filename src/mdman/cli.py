@@ -7,13 +7,17 @@ import sys
 import tempfile
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
+from typer.core import TyperGroup
 
 from mdman import __version__
+from mdman.jsonl import JsonlError, read_entries
 from mdman.markdown import add_toc
-from mdman.renderer import render_markdown
+from mdman.profile_commands import profile_help, profiles_app
+from mdman.profiles import ProfileError, load_profile
+from mdman.renderer import render_entries, render_markdown
 
 
 class OutputFormat(str, Enum):
@@ -21,18 +25,44 @@ class OutputFormat(str, Enum):
     MARKDOWN = "markdown"
 
 
+RENDER_COMMAND = "render"
+
+
+class DefaultRenderGroup(TyperGroup):
+    """`mdman DATEI` bleibt Kurzform für `mdman render DATEI`."""
+
+    def parse_args(self, ctx: Any, args: list[str]) -> list[str]:
+        first = args[0] if args else None
+        if first not in {*self.commands, "--help"}:
+            args = [RENDER_COMMAND, *args]
+        return super().parse_args(ctx, args)
+
+    def format_help(self, ctx: Any, formatter: Any) -> None:
+        super().format_help(ctx, formatter)
+        render = self.commands[RENDER_COMMAND]
+        with typer.Context(
+            render, parent=ctx, info_name=RENDER_COMMAND
+        ) as render_ctx:
+            render.format_help(render_ctx, formatter)
+
+
 app = typer.Typer(
-    no_args_is_help=False,
+    cls=DefaultRenderGroup,
     add_completion=False,
+    rich_markup_mode="markdown",
     help="Markdown lesbar und monochrom im Terminal anzeigen.",
+    epilog="Kurzform: mdman DATEI entspricht mdman render DATEI.",
 )
+app.add_typer(profiles_app, name="profiles")
 
 
 def main() -> None:
     app(prog_name="mdman")
 
 
-@app.command()
+@app.command(
+    RENDER_COMMAND, help="Markdown im Terminal anzeigen (Standard)."
+)
 def render_command(
     filename: Annotated[
         str | None,
@@ -127,6 +157,49 @@ def render_command(
         else:
             render_markdown(source, width=width, pager=pager)
     except (OSError, UnicodeError) as error:
+        typer.echo(f"mdman: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@app.command(
+    "jsonl",
+    help="JSONL mit einem Darstellungsprofil anzeigen.",
+    epilog=profile_help(),
+)
+def jsonl_command(
+    profile: Annotated[
+        str,
+        typer.Argument(
+            help="Profilname oder JSON-Profilpfad.", metavar="PROFIL"
+        ),
+    ],
+    filename: Annotated[
+        str | None,
+        typer.Argument(
+            help="JSONL-Datei; '-' oder keine Datei liest stdin.",
+            metavar="DATEI",
+        ),
+    ] = None,
+    width: Annotated[
+        int,
+        typer.Option(
+            "-w", "--width", min=20, help="Ausgabebreite in Zeichen."
+        ),
+    ] = 80,
+    pager: Annotated[
+        bool,
+        typer.Option(
+            "-p", "--pager", help="Ausgabe über den Pager anzeigen."
+        ),
+    ] = False,
+) -> None:
+    try:
+        selected_profile = load_profile(profile)
+        entries = read_entries(
+            read_source(filename), profile=selected_profile
+        )
+        render_entries(entries, width=width, pager=pager)
+    except (OSError, UnicodeError, JsonlError, ProfileError) as error:
         typer.echo(f"mdman: {error}", err=True)
         raise typer.Exit(code=1) from error
 

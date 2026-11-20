@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mdman-Darstellungsprofil",
+  "description": "Ein Profil wählt Felder aus JSONL-Einträgen aus und bestimmt ihre Darstellung.",
+  "type": "object",
+  "required": [
+    "schema"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "$ref": "#/$defs/object",
+      "title": "schema",
+      "description": "Darstellungsschema für normale Einträge. Fehlende ausgewählte Felder werden ausgelassen. Vorhandene Felder müssen den angegebenen Typ haben."
+    },
+    "meta": {
+      "title": "meta",
+      "description": "Bestimmt die Rolle der ersten Zeile. Wenn meta fehlt, gilt der angegebene Standard.",
+      "default": false,
+      "oneOf": [
+        {
+          "const": false,
+          "title": "meta: false",
+          "description": "Alle Zeilen verwenden schema."
+        },
+        {
+          "const": true,
+          "title": "meta: true",
+          "description": "Die erste Zeile wird vollständig und rekursiv als Metadaten angezeigt. Zeichenketten erscheinen als Text. Ab Zeile 2 gilt schema."
+        },
+        {
+          "$ref": "#/$defs/object",
+          "title": "meta: {...}",
+          "description": "Die erste Zeile verwendet dieses eigene Darstellungsschema. Ab Zeile 2 gilt schema."
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "object": {
+      "title": "Objekte",
+      "description": "Objektschlüssel wählen gleichnamige Felder rekursiv aus. Die Reihenfolge im Profil bestimmt die Ausgabe. Verschachtelte Objekte werden eingerückt.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "list": {
+      "title": "Listen",
+      "description": "Eine Liste mit genau einem Schema beschreibt die Darstellung jedes Elements der Datenliste.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "leaf": {
+      "title": "Blatttypen",
+      "description": "Jeder Blatttyp bestimmt den erwarteten Wert und seine Darstellung.",
+      "oneOf": [
+        {
+          "const": "string",
+          "title": "string",
+          "description": "Zeichenkette wörtlich als Text anzeigen."
+        },
+        {
+          "const": "markdown",
+          "title": "markdown",
+          "description": "Zeichenkette als Markdown in einem beschrifteten Rahmen rendern."
+        },
+        {
+          "const": "date",
+          "title": "date",
+          "description": "ISO-Datum oder ISO-Zeitstempel prüfen und in ursprünglicher Schreibweise anzeigen."
+        },
+        {
+          "const": "number",
+          "title": "number",
+          "description": "JSON-Zahl anzeigen."
+        }
+      ]
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/object"
+        },
+        {
+          "$ref": "#/$defs/list"
+        },
+        {
+          "$ref": "#/$defs/leaf"
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "schema": {
+        "message": {
+          "body": "markdown"
+        }
+      },
+      "meta": true
+    },
+    {
+      "schema": {
+        "message": {
+          "body": "markdown"
+        }
+      },
+      "meta": {
+        "title": "string",
+        "description": "markdown"
+      }
+    },
+    {
+      "schema": {
+        "author": {
+          "name": "string"
+        },
+        "created": "date",
+        "message": {
+          "body": "markdown",
+          "attachments": [
+            {
+              "name": "string",
+              "size": "number"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
