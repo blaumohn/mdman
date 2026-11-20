@@ -5,6 +5,7 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 from typer.testing import CliRunner
+from unicodeit.data import REPLACEMENTS  # type: ignore[import-untyped]
 
 from mdman.cli import app
 
@@ -14,6 +15,7 @@ FORMULA = (
     r"\text{המשך הדינמיקה של }C. }"
 )
 VISIBLE = "מבנה סמנטי ב-C ↔ חוויה/רעיון ↔ המשך הדינמיקה של C."
+IFF_SYMBOL = dict(REPLACEMENTS)[r"\iff"]
 runner = CliRunner()
 
 
@@ -222,13 +224,13 @@ def test_multiline_equivalence_with_padding() -> None:
     )
     result = runner.invoke(app, ["-"], input=source)
     assert result.exit_code == 0, result.output
-    assert "h ∼ h' ⇔ P(F|h) = P(F|h')." in result.output
+    assert f"h ∼ h' {IFF_SYMBOL} P(F|h) = P(F|h')." in result.output
     assert "\\" not in result.output
 
 
 @pytest.mark.parametrize(
     ("command", "symbol"),
-    [(r"\iff", "⇔"), (r"\implies", "⟹"), (r"\impliedby", "⟸")],
+    [(r"\iff", IFF_SYMBOL), (r"\implies", "⟹"), (r"\impliedby", "⟸")],
 )
 def test_symbol_aliases_from_library(command: str, symbol: str) -> None:
     result = runner.invoke(app, ["-"], input=rf"\(A {command} B\)")
