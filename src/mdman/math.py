@@ -17,7 +17,6 @@ from rich import box
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.markdown import Markdown, MarkdownElement
 from rich.panel import Panel
-from unicodeit.data import REPLACEMENTS  # type: ignore[import-untyped]
 
 from mdman.bidi import BidiConsole, MathText, has_rtl
 
@@ -96,17 +95,6 @@ _TEXT_CONTEXT.add_context_category(
 )
 
 
-# Match whole command names so a known prefix in an unknown command
-# (e.g. \iffunknown) does not get replaced.
-_SYMBOLS = {
-    name[1:]: symbol
-    for name, symbol in REPLACEMENTS
-    if name.startswith("\\")
-    and name[1:].isascii()
-    and name[1:].isalpha()
-}
-
-
 class _LatexText(latex2text.LatexNodes2Text):
     def macro_node_to_text(self, node: Any) -> Any:
         # The library normally drops unknown commands. Keep the whole
@@ -114,8 +102,6 @@ class _LatexText(latex2text.LatexNodes2Text):
         if node.macroname in {"input", "include"}:
             raise ValueError("Unsupported macro")
         if self.latex_context.get_macro_spec(node.macroname) is None:
-            if node.macroname in _SYMBOLS:
-                return _SYMBOLS[node.macroname]
             raise ValueError("Unsupported macro")
         return super().macro_node_to_text(node)
 

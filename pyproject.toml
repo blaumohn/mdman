@@ -12,10 +12,9 @@ dependencies = [
   "jsonschema>=4.18,<5",
   "markdown-it-py>=3,<5",
   "mdit-py-plugins>=0.7,<1",
-  "pylatexenc==3.0b2",
+  "pylatexenc @ git+https://github.com/blaumohn/pylatexenc.git@fix/symbol-mappings",
   "rich>=14,<15",
   "typer>=0.12,<1",
-  "unicodeit @ git+https://github.com/blaumohn/unicodeit.git@fix/symbol-mappings",
 ]
 
 [project.optional-dependencies]

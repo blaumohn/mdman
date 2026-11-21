@@ -54,9 +54,9 @@ kommen die Überschriften nach dem Endmarker.
 
 ## Formeln im Terminal lesen
 
-Die Formeldarstellung nutzt [pylatexenc](https://pypi.org/project/pylatexenc/)
-zum Lesen der LaTeX-Struktur und den in [pyproject.toml](pyproject.toml)
-eingetragenen UnicodeIt-Fork für zusätzliche Symbolzuordnungen.
+Die Formeldarstellung nutzt den in [pyproject.toml](pyproject.toml)
+eingetragenen [pylatexenc-Fork](https://github.com/blaumohn/pylatexenc)
+zum Lesen der LaTeX-Struktur und zum Umwandeln der Symbole in Unicode.
 
 mdman wandelt LaTeX-Formeln in Unicode-Text um, etwa `\frac{a+b}{c}` in
 `(a + b)/c`. Setze Formeln im Text zwischen `$…$` oder `\(…\)` und
@@ -93,11 +93,3 @@ zeigt `mdman profiles --help` das Format und Beispiele aus dem verbindlichen
 - `make dev-install` installiert die Entwicklungswerkzeuge. `make check`
   prüft Python-Code und Browser-Editor. Details zum Editor stehen in der
   [Editor-Anleitung](editor/README.md).
-
-### Fehlerbehebung
-
-Behält pip beim erneuten Setup eine gleich versionierte UnicodeIt-Installation,
-obwohl in [pyproject.toml](pyproject.toml) eine andere Quelle hinterlegt ist,
-entferne das Paket mit `.venv/bin/python -m pip uninstall unicodeit` und führe
-`make setup` erneut aus. UnicodeIt liefert Symbolzuordnungen für die
-Formeldarstellung.
