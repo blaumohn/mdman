@@ -90,14 +90,14 @@ def render_command(
         typer.Option(
             "-p",
             "--pager",
-            help="Ausgabe über den konfigurierten Pager anzeigen.",
+            help="Mit dem konfigurierten Pager seitenweise blättern.",
         ),
     ] = False,
     toc: Annotated[
         bool,
         typer.Option(
             "--toc",
-            help="TOC in das Dokument einfügen.",
+            help="Ein Inhaltsverzeichnis in die Ausgabe einfügen.",
         ),
     ] = False,
     output_format: Annotated[
@@ -109,7 +109,7 @@ def render_command(
         typer.Option(
             "-i",
             "--in-place",
-            help="Markdown mit TOC in dieselbe Datei zurückschreiben.",
+            help="Mit --toc in die Quelldatei zurückschreiben.",
         ),
     ] = False,
     _version: Annotated[
@@ -194,7 +194,9 @@ def jsonl_command(
     pager: Annotated[
         bool,
         typer.Option(
-            "-p", "--pager", help="Ausgabe über den Pager anzeigen."
+            "-p",
+            "--pager",
+            help="Mit dem konfigurierten Pager seitenweise blättern.",
         ),
     ] = False,
 ) -> None:
