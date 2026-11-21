@@ -1,4 +1,4 @@
-"""Render LaTeX with the bundled parser, Rich, and terminal BiDi."""
+"""Render LaTeX with pylatexenc, Rich, and terminal BiDi."""
 
 from __future__ import annotations
 
@@ -11,16 +11,14 @@ from markdown_it.rules_core import StateCore
 from markdown_it.token import Token
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 from mdit_py_plugins.texmath import texmath_plugin
+from pylatexenc import latex2text, latexwalker, macrospec
+from pylatexenc.latexnodes import ParsingStateDeltaLeaveMathMode
 from rich import box
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.markdown import Markdown, MarkdownElement
 from rich.panel import Panel
 from unicodeit.data import REPLACEMENTS  # type: ignore[import-untyped]
 
-from mdman._vendor.pylatexenc import latex2text, latexwalker, macrospec
-from mdman._vendor.pylatexenc.latexnodes import (
-    ParsingStateDeltaLeaveMathMode,
-)
 from mdman.bidi import BidiConsole, MathText, has_rtl
 
 
